@@ -1,0 +1,47 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <AssemblyName>ValheimAdminOverlay.Host</AssemblyName>
+    <RootNamespace>ValheimAdminOverlay.Host</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Version>1.0.0</Version>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <AssemblySearchPaths>$(AssemblySearchPaths);{HintPathFromItem}</AssemblySearchPaths>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(ValheimPath)' == ''">
+    <ValheimPath>C:\Program Files (x86)\Steam\steamapps\common\Valheim</ValheimPath>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <ManagedPath>$(ValheimPath)\valheim_Data\Managed</ManagedPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="src\**\*.cs" />
+  </ItemGroup>
+
+  <!-- Хост намеренно не ссылается на assembly_valheim: он должен переживать
+       обновления игры и не зависеть от её API. -->
+  <ItemGroup>
+    <GameReference Include="UnityEngine" />
+    <GameReference Include="UnityEngine.CoreModule" />
+    <GameReference Include="UnityEngine.InputLegacyModule" />
+    <GameReference Include="UnityEngine.IMGUIModule" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="@(GameReference)">
+      <HintPath>$(ManagedPath)\%(Identity).dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="CheckReferences" BeforeTargets="BeforeBuild">
+    <Error Condition="!Exists('$(ManagedPath)\UnityEngine.CoreModule.dll')"
+           Text="Не найден UnityEngine.CoreModule.dll в '$(ManagedPath)'. Передай -p:ValheimPath." />
+  </Target>
+
+</Project>

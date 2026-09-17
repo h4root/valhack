@@ -1,0 +1,57 @@
+# Сборка
+bin/
+obj/
+[Bb]uild/
+*.user
+*.suo
+*.cache
+*.tlog
+
+# Бинарники: всё восстанавливается сборкой и NuGet, в репозитории им не место.
+# Сюда же попадают сборки игры и редистрибутивы Harmony/MonoMod/Cecil.
+*.dll
+*.exe
+*.pdb
+*.mdb
+*.so
+*.dylib
+
+# NuGet
+packages/
+*.nupkg
+*.snupkg
+
+# Секреты и ключи
+.env
+.env.*
+*.pem
+*.key
+*.ppk
+*.pfx
+*.p12
+*.snk
+id_rsa*
+id_ed25519*
+*credentials*
+*secret*
+*token*
+
+# Локальное состояние и логи: содержат пути, имена игроков и прочие следы сессии
+*.log
+adminoverlay.cfg
+doorstop_config.local.ini
+
+# Среды разработки
+.vs/
+.vscode/
+.idea/
+*.sln.docstates
+
+# ОС
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Пока не публикуем по просьбе владельца репозитория: файл лежит локально.
+# Убрать строку, когда документация понадобится.
+README.md
