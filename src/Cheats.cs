@@ -20,8 +20,26 @@ namespace ValheimAdminOverlay
         private static float _baseSwim;
 
         private static Vector3? _savedPoint;
+        private static Vector3? _undoPoint;
 
         internal static bool HasSavedPoint => _savedPoint.HasValue;
+        internal static bool HasUndo => _undoPoint.HasValue;
+
+        // Запоминается автоматически перед каждым телепортом: единственный
+        // способ вернуться, если точка назначения оказалась негодной.
+        internal static void RememberUndo(Vector3 position)
+        {
+            _undoPoint = position;
+        }
+
+        internal static void GoBack()
+        {
+            if (!_undoPoint.HasValue) return;
+
+            var target = _undoPoint.Value;
+            _undoPoint = null;
+            Actions.TeleportTo(target);
+        }
 
         internal static void Tick()
         {

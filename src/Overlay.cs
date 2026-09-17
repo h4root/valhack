@@ -243,13 +243,13 @@ namespace ValheimAdminOverlay
             var role = ZNet.instance == null
                 ? "нет сети"
                 : ZNet.instance.IsServer() ? "хост" : "клиент";
-            return $"{role} · игроков {Actions.Peers().Count + 1} · объектов {Diagnostics.TotalZdo} · {Diagnostics.Fps:0} fps";
+            return $"{role} · игроков {Actions.Players().Count + 1} · объектов {Diagnostics.TotalZdo} · {Diagnostics.Fps:0} fps";
         }
 
         private static void DrawPlayers()
         {
-            var peers = Actions.Peers();
-            if (peers.Count == 0)
+            var players = Actions.Players();
+            if (players.Count == 0)
             {
                 GUILayout.Label("Других игроков в сети нет.", Theme.Hint);
                 return;
@@ -258,33 +258,47 @@ namespace ValheimAdminOverlay
             var local = Player.m_localPlayer;
             var admin = Actions.IsHostOrDedicatedAdmin;
 
-            foreach (var peer in peers)
+            foreach (var info in players)
             {
-                var name = string.IsNullOrEmpty(peer.m_playerName) ? "(без имени)" : peer.m_playerName;
-                var distance = local != null ? Vector3.Distance(local.transform.position, peer.m_refPos) : 0f;
+                var name = info.m_name;
                 var tagged = CheaterTag.IsTagged(name);
+                var known = info.m_publicPosition && Actions.IsSaneTarget(info.m_position);
 
                 GUILayout.BeginVertical(Theme.Card);
 
                 GUILayout.BeginHorizontal();
                 GUILayout.Label(tagged ? name + "  ⚑" : name, Theme.RowLabel);
                 GUILayout.FlexibleSpace();
-                GUILayout.Label($"{distance:0} м   {peer.m_refPos.x:0}, {peer.m_refPos.z:0}", Theme.RowMuted);
+                GUILayout.Label(
+                    known
+                        ? $"{(local != null ? Vector3.Distance(local.transform.position, info.m_position) : 0f):0} м   {info.m_position.x:0}, {info.m_position.z:0}"
+                        : "позиция скрыта",
+                    Theme.RowMuted);
                 GUILayout.EndHorizontal();
 
                 GUILayout.BeginHorizontal();
-                if (GUILayout.Button("К нему")) Actions.TeleportToPeer(peer);
-                if (GUILayout.Button(tagged ? "Снять метку" : "Пометить")) CheaterTag.Toggle(name);
+
+                GUI.enabled = known;
+                if (GUILayout.Button("К нему", GUILayout.Width(110f)))
+                    Actions.TeleportToPlayer(info);
+                GUI.enabled = true;
+
+                if (GUILayout.Button(tagged ? "Снять метку" : "Пометить", GUILayout.Width(130f)))
+                    CheaterTag.Toggle(name);
+
                 GUILayout.FlexibleSpace();
 
                 GUI.enabled = admin;
                 if (GUILayout.Button("Кик", Theme.BtnDanger, GUILayout.Width(60f))) Actions.Kick(name);
                 if (GUILayout.Button("Бан", Theme.BtnDanger, GUILayout.Width(60f))) Actions.Ban(name);
                 GUI.enabled = true;
-                GUILayout.EndHorizontal();
 
+                GUILayout.EndHorizontal();
                 GUILayout.EndVertical();
             }
+
+            if (!string.IsNullOrEmpty(Actions.LastTeleportError))
+                GUILayout.Label(Actions.LastTeleportError, Theme.RowMuted);
         }
 
         private static void DrawSelf()
@@ -338,6 +352,14 @@ namespace ValheimAdminOverlay
             if (GUILayout.Button("Запомнить точку", GUILayout.Width(170f))) Cheats.SavePoint();
             GUI.enabled = Cheats.HasSavedPoint;
             if (GUILayout.Button("Вернуться к точке", GUILayout.Width(180f))) Cheats.GoToSavedPoint();
+            GUI.enabled = true;
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            GUI.enabled = Cheats.HasUndo;
+            if (GUILayout.Button("Отменить телепорт", Theme.BtnAccent, GUILayout.Width(190f)))
+                Cheats.GoBack();
             GUI.enabled = true;
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
