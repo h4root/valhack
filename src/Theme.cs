@@ -15,6 +15,7 @@ namespace ValheimAdminOverlay
         internal static GUIStyle RowLabel, RowMuted;
         internal static GUIStyle SectionHeader, SectionHeaderOpen, MasterOn, MasterOff;
         internal static GUIStyle ListRow, ListRowActive, SliderTrack, SliderThumb;
+        internal static GUIStyle Check, CheckOn, Segment, SegmentActive;
         internal static Texture2D Glow, Pixel;
         internal static GUIStyle ToggleOn, ToggleOff, Close, Rule, Grip, Swatch;
 
@@ -230,21 +231,54 @@ namespace ValheimAdminOverlay
                 fontStyle = FontStyle.Bold
             };
 
+            // Дорожка рисуется текстурой во всю высоту ползунка, а сама линия
+            // проходит по её центру — тогда круг садится ровно на линию,
+            // а не висит над ней.
+            const int thumbSize = 14;
+
             SliderTrack = new GUIStyle
             {
-                normal = { background = Rounded(2, Line) },
-                border = new RectOffset(2, 2, 2, 2),
-                fixedHeight = 4f,
-                margin = new RectOffset(0, gap, rowHeight / 2 - 2, 0)
+                normal = { background = TrackLine(thumbSize, 3, Line) },
+                border = new RectOffset(2, 2, 0, 0),
+                fixedHeight = thumbSize,
+                margin = new RectOffset(0, gap, (rowHeight - thumbSize) / 2, 0)
             };
 
             SliderThumb = new GUIStyle
             {
-                normal = { background = Rounded(6, Accent) },
-                active = { background = Rounded(6, Accent) },
-                border = new RectOffset(6, 6, 6, 6),
-                fixedWidth = 13f,
-                fixedHeight = 13f
+                normal = { background = Rounded(thumbSize / 2, Accent) },
+                active = { background = Rounded(thumbSize / 2, Accent) },
+                border = new RectOffset(thumbSize / 2, thumbSize / 2, thumbSize / 2, thumbSize / 2),
+                fixedWidth = thumbSize,
+                fixedHeight = thumbSize,
+                margin = new RectOffset(0, 0, 0, 0)
+            };
+
+            Check = new GUIStyle(Btn)
+            {
+                normal = { background = surfaceTex, textColor = Muted },
+                hover = { background = hoverTex, textColor = Text },
+                alignment = TextAnchor.MiddleLeft,
+                padding = new RectOffset(9, 12, 0, 0)
+            };
+
+            CheckOn = new GUIStyle(Check)
+            {
+                normal = { background = onTex, textColor = On },
+                hover = { background = onTex, textColor = On }
+            };
+
+            Segment = new GUIStyle(Btn)
+            {
+                margin = new RectOffset(0, 1, gap - 1, gap - 1),
+                padding = new RectOffset(10, 10, 0, 0)
+            };
+
+            SegmentActive = new GUIStyle(Segment)
+            {
+                normal = { background = accentTex, textColor = Accent },
+                hover = { background = accentTex, textColor = Accent },
+                fontStyle = FontStyle.Bold
             };
 
             Pixel = Solid(Color.white);
@@ -365,6 +399,28 @@ namespace ValheimAdminOverlay
                     pixels[y * size + x] = new Color(1f, 1f, 1f, alpha * alpha);
                 }
             }
+
+            tex.SetPixels(pixels);
+            tex.Apply();
+            Textures.Add(tex);
+            return tex;
+        }
+
+        // Прямоугольник заданной высоты с горизонтальной линией по центру.
+        private static Texture2D TrackLine(int height, int thickness, Color color)
+        {
+            var tex = new Texture2D(1, height, TextureFormat.ARGB32, false)
+            {
+                hideFlags = HideFlags.HideAndDontSave,
+                filterMode = FilterMode.Point,
+                wrapMode = TextureWrapMode.Clamp
+            };
+
+            var from = (height - thickness) / 2;
+            var pixels = new Color[height];
+
+            for (var y = 0; y < height; y++)
+                pixels[y] = y >= from && y < from + thickness ? color : new Color(0f, 0f, 0f, 0f);
 
             tex.SetPixels(pixels);
             tex.Apply();

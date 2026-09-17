@@ -191,7 +191,6 @@ namespace ValheimAdminOverlay
         {
             GUILayout.BeginHorizontal();
             GUILayout.Label("Админ-оверлей", Theme.Title);
-            GUILayout.Label(HeaderHint(), Theme.MutedLabel);
             GUILayout.FlexibleSpace();
             var closeClicked = GUILayout.Button("✕", Theme.Close, GUILayout.Width(24f));
             GUILayout.EndHorizontal();
@@ -237,16 +236,6 @@ namespace ValheimAdminOverlay
             GUI.DragWindow(new Rect(0f, 0f, Config.Window.width, 26f));
 
             if (closeClicked) Close();
-        }
-
-        private static string HeaderHint()
-        {
-            return $"{Config.ToggleKey}  ·  {Config.FlyKey} полёт  ·  F6 перезагрузка";
-        }
-
-        private static bool ToggleButton(string label, bool on)
-        {
-            return GUILayout.Button(label, on ? Theme.ToggleOn : Theme.ToggleOff);
         }
 
         private static string StatusLine()
@@ -296,9 +285,6 @@ namespace ValheimAdminOverlay
 
                 GUILayout.EndVertical();
             }
-
-            if (!admin)
-                GUILayout.Label("Кик и бан доступны только хосту или админу сервера.", Theme.Hint);
         }
 
         private static void DrawSelf()
@@ -309,32 +295,33 @@ namespace ValheimAdminOverlay
                 return;
             }
 
-            GUILayout.Label("Работает только на вашем клиенте.", Theme.Hint);
 
             GUILayout.Label("РЕЖИМЫ", Theme.SectionLabel);
             GUILayout.BeginHorizontal();
-            if (ToggleButton("Бессмертие", Actions.GodModeOn)) Actions.ToggleGodMode();
-            if (ToggleButton("Полёт / noclip", Actions.FlyOn)) Actions.ToggleFly();
+            if (Ui.Checkbox("Бессмертие", Actions.GodModeOn, 170f) != Actions.GodModeOn)
+                Actions.ToggleGodMode();
+            if (Ui.Checkbox("Полёт / noclip", Actions.FlyOn, 170f) != Actions.FlyOn)
+                Actions.ToggleFly();
+            GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
-            if (ToggleButton("Беск. стамина", Cheats.InfiniteStamina))
-                Cheats.InfiniteStamina = !Cheats.InfiniteStamina;
-            if (ToggleButton("Бесплатная стройка", Cheats.NoBuildCost))
-                Cheats.NoBuildCost = !Cheats.NoBuildCost;
+            Cheats.InfiniteStamina = Ui.Checkbox("Бесконечная стамина", Cheats.InfiniteStamina, 170f);
+            Cheats.NoBuildCost = Ui.Checkbox("Бесплатная стройка", Cheats.NoBuildCost, 170f);
+            GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
 
             GUILayout.Label("СКОРОСТЬ", Theme.SectionLabel);
-            GUILayout.BeginHorizontal();
-            GUILayout.Label($"x{Cheats.SpeedMultiplier:0.#}", Theme.RowLabel, GUILayout.Width(44f));
-            foreach (var mult in new[] { 1f, 2f, 4f, 8f })
-                if (GUILayout.Button($"x{mult:0}")) Cheats.SetSpeedMultiplier(mult);
-            GUILayout.EndHorizontal();
+            var speedIndex = Ui.Segmented("Скорость",
+                new[] { "x1", "x2", "x4", "x8" }, SpeedIndex(Cheats.SpeedMultiplier));
+            if (!Mathf.Approximately(SpeedSteps[speedIndex], Cheats.SpeedMultiplier))
+                Cheats.SetSpeedMultiplier(SpeedSteps[speedIndex]);
 
             GUILayout.Label("ДЕЙСТВИЯ", Theme.SectionLabel);
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Вылечить")) Actions.HealFull();
-            if (GUILayout.Button("Открыть карту")) Actions.ExploreMap();
+            if (GUILayout.Button("Вылечить", GUILayout.Width(130f))) Actions.HealFull();
+            if (GUILayout.Button("Открыть карту", GUILayout.Width(150f))) Actions.ExploreMap();
+            GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
 
             GUILayout.Label("ТЕЛЕПОРТ", Theme.SectionLabel);
@@ -343,14 +330,16 @@ namespace ValheimAdminOverlay
             _teleportX = GUILayout.TextField(_teleportX, GUILayout.Width(70f));
             GUILayout.Label("Z", Theme.RowMuted, GUILayout.Width(12f));
             _teleportZ = GUILayout.TextField(_teleportZ, GUILayout.Width(70f));
-            if (GUILayout.Button("Перенести")) TeleportToTypedCoordinates();
+            if (GUILayout.Button("Перенести", GUILayout.Width(120f))) TeleportToTypedCoordinates();
+            GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Запомнить точку")) Cheats.SavePoint();
+            if (GUILayout.Button("Запомнить точку", GUILayout.Width(170f))) Cheats.SavePoint();
             GUI.enabled = Cheats.HasSavedPoint;
-            if (GUILayout.Button("Вернуться к точке")) Cheats.GoToSavedPoint();
+            if (GUILayout.Button("Вернуться к точке", GUILayout.Width(180f))) Cheats.GoToSavedPoint();
             GUI.enabled = true;
+            GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
         }
 
@@ -370,73 +359,89 @@ namespace ValheimAdminOverlay
 
         private static void DrawEsp()
         {
-            var enabled = Ui.Master("ESP включён", Config.EspEnabled);
+            GUILayout.BeginHorizontal();
+            var enabled = Ui.Checkbox("ESP", Config.EspEnabled, 120f);
+            GUILayout.FlexibleSpace();
+            if (Config.EspEnabled)
+                GUILayout.Label($"целей: {Esp.Count}", Theme.RowMuted, GUILayout.Width(90f));
+            GUILayout.EndHorizontal();
+
             if (enabled != Config.EspEnabled)
             {
                 Config.EspEnabled = enabled;
                 Config.Save();
             }
 
-            if (!Config.EspEnabled)
-            {
-                Ui.Hint("Подсветка сквозь стены. Рисуется только у вас на экране.");
-                return;
-            }
+            if (!Config.EspEnabled) return;
 
             Esp.ApplyColorsFromConfig();
 
             Ui.Caption("КАТЕГОРИИ");
-            _espCategory = Ui.List(
-                Esp.Categories.Select(c => c.Title).ToArray(),
-                _espCategory,
-                i => Esp.Categories[i].Enabled ? "вкл" : "");
+
+            var dirty = false;
+            for (var i = 0; i < Esp.Categories.Length; i++)
+            {
+                var item = Esp.Categories[i];
+
+                GUILayout.BeginHorizontal();
+
+                var on = Ui.Checkbox(item.Title, item.Enabled, 150f);
+                if (on != item.Enabled)
+                {
+                    item.Enabled = on;
+                    dirty = true;
+                }
+
+                if (GUILayout.Button("Настроить", i == _espCategory ? Theme.SegmentActive : Theme.Segment,
+                        GUILayout.Width(100f)))
+                    _espCategory = i;
+
+                GUILayout.FlexibleSpace();
+                GUILayout.EndHorizontal();
+            }
 
             var category = Esp.Categories[_espCategory];
 
-            Ui.BeginIndent();
-            var on = Ui.Toggle(category.Enabled ? "Показывать" : "Не показывать", category.Enabled);
-            if (on != category.Enabled)
+            Ui.Caption(category.Title.ToUpperInvariant());
+
+            GUILayout.BeginHorizontal();
+            category.ShowGlow = Ui.Checkbox("Свечение", category.ShowGlow, 120f);
+            category.ShowBox = Ui.Checkbox("Обводка", category.ShowBox, 120f);
+            category.ShowLabel = Ui.Checkbox("Подпись", category.ShowLabel, 120f);
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            var color = Ui.ColorField("Цвет", category.Color);
+            if (color != category.Color)
             {
-                category.Enabled = on;
-                Esp.StoreColorsToConfig();
-                Config.Save();
+                category.Color = color;
+                dirty = true;
             }
 
-            if (category.Enabled)
+            if (_espCategory == (int)EspKind.Ores)
             {
                 GUILayout.BeginHorizontal();
-                category.ShowGlow = Ui.Toggle("Свечение", category.ShowGlow);
-                category.ShowBox = Ui.Toggle("Обводка", category.ShowBox);
-                category.ShowLabel = Ui.Toggle("Подпись", category.ShowLabel);
+                GUILayout.Label("Ключевые слова", Theme.RowLabel, GUILayout.Width(150f));
+                var keywords = GUILayout.TextField(Config.EspOreKeywords, GUILayout.Width(260f));
+                GUILayout.FlexibleSpace();
                 GUILayout.EndHorizontal();
 
-                var color = Ui.ColorField("Цвет", category.Color);
-                if (color != category.Color)
+                if (keywords != Config.EspOreKeywords)
                 {
-                    category.Color = color;
-                    Esp.StoreColorsToConfig();
-                    Config.Save();
-                }
-
-                if (_espCategory == (int)EspKind.Ores)
-                {
-                    Ui.Caption("ЧТО СЧИТАТЬ РУДОЙ");
-                    var keywords = GUILayout.TextField(Config.EspOreKeywords);
-                    if (keywords != Config.EspOreKeywords)
-                    {
-                        Config.EspOreKeywords = keywords;
-                        Config.Save();
-                    }
-                    Ui.Hint("Подстроки имён префабов через запятую.");
+                    Config.EspOreKeywords = keywords;
+                    dirty = true;
                 }
             }
-            Ui.EndIndent();
 
             Ui.Caption("ОБЩЕЕ");
+
             var distance = Ui.Slider("Радиус", Config.EspDistance, 1f, 600f, "0", " м");
             var glow = Ui.Slider("Сила свечения", Config.EspGlowStrength, 0f, 1f, "0.00");
             var glowSize = Ui.Slider("Размер свечения", Config.EspGlowSize, 0f, 1.5f, "0.00");
-            var outline = Ui.Slider("Толщина обводки", Config.EspOutline, 1f, 6f, "0", " px");
+
+            var outlineIndex = Ui.Segmented("Толщина обводки",
+                new[] { "1", "2", "3", "4", "6" }, OutlineIndex(Config.EspOutline));
+            var outline = OutlineValue(outlineIndex);
 
             if (!Mathf.Approximately(distance, Config.EspDistance) ||
                 !Mathf.Approximately(glow, Config.EspGlowStrength) ||
@@ -447,34 +452,80 @@ namespace ValheimAdminOverlay
                 Config.EspGlowStrength = glow;
                 Config.EspGlowSize = glowSize;
                 Config.EspOutline = outline;
-                Config.Save();
+                dirty = true;
             }
 
-            GUILayout.Label($"Подсвечено целей: {Esp.Count}", Theme.RowMuted);
-            Ui.Hint("Клиент знает только о прогруженных зонах вокруг вас — дальше них ESP ничего не покажет.");
+            if (dirty)
+            {
+                Esp.StoreColorsToConfig();
+                Config.Save();
+            }
+        }
+
+        private static readonly float[] OutlineSteps = { 1f, 2f, 3f, 4f, 6f };
+        private static readonly float[] ScaleSteps = { 0.8f, 1f, 1.25f, 1.5f, 2f };
+        private static readonly int[] RadiusSteps = { 0, 3, 6, 10, 14 };
+        private static readonly float[] SpeedSteps = { 1f, 2f, 4f, 8f };
+
+        private static int ScaleIndex(float value)
+        {
+            for (var i = 0; i < ScaleSteps.Length; i++)
+                if (Mathf.Approximately(ScaleSteps[i], value)) return i;
+
+            return 1;
+        }
+
+        private static int RadiusIndex(int value)
+        {
+            for (var i = 0; i < RadiusSteps.Length; i++)
+                if (RadiusSteps[i] == value) return i;
+
+            return 2;
+        }
+
+        private static int SpeedIndex(float value)
+        {
+            for (var i = 0; i < SpeedSteps.Length; i++)
+                if (Mathf.Approximately(SpeedSteps[i], value)) return i;
+
+            return 0;
+        }
+
+        private static int OutlineIndex(float value)
+        {
+            for (var i = 0; i < OutlineSteps.Length; i++)
+                if (Mathf.Approximately(OutlineSteps[i], value)) return i;
+
+            return 1;
+        }
+
+        private static float OutlineValue(int index)
+        {
+            return OutlineSteps[Mathf.Clamp(index, 0, OutlineSteps.Length - 1)];
         }
 
         private static void DrawSpawner()
         {
             if (Player.m_localPlayer == null)
             {
-                Ui.Hint("Персонаж не загружен.");
                 return;
             }
 
             Ui.Caption("ПОИСК");
-            var filter = GUILayout.TextField(Spawner.Filter);
+            GUILayout.BeginHorizontal();
+            var filter = GUILayout.TextField(Spawner.Filter, GUILayout.Width(280f));
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
             if (filter != Spawner.Filter) Spawner.Filter = filter;
 
             Spawner.Amount = Ui.SliderInt("Количество", Spawner.Amount, 1, 100, " шт");
-            Spawner.Quality = Ui.SliderInt("Качество", Spawner.Quality, 1, 4);
+            Spawner.Quality = Ui.Segmented("Качество", new[] { "1", "2", "3", "4" }, Spawner.Quality - 1) + 1;
 
             var items = Spawner.Items;
             Ui.Caption($"ПРЕДМЕТЫ  ({items.Count} из {Spawner.TotalCount})");
 
             if (items.Count == 0)
             {
-                Ui.Hint("Ничего не найдено. Очистите поиск или зайдите в мир — база предметов грузится вместе с ним.");
                 return;
             }
 
@@ -496,19 +547,21 @@ namespace ValheimAdminOverlay
         {
             if (Player.m_localPlayer == null)
             {
-                Ui.Hint("Персонаж не загружен.");
                 return;
             }
 
             Ui.Caption("РЕЦЕПТЫ");
-            if (GUILayout.Button("Открыть все рецепты", Theme.BtnAccent))
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Открыть все рецепты", Theme.BtnAccent, GUILayout.Width(210f)))
                 Progression.UnlockRecipes();
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
 
             Ui.Caption("НАВЫКИ");
             Progression.SkillLevel = Ui.SliderInt("Уровень", Progression.SkillLevel, 0, 100);
 
             GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Применить ко всем"))
+            if (GUILayout.Button("Применить ко всем", GUILayout.Width(190f)))
                 Progression.SetAllSkills(Progression.SkillLevel);
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
@@ -570,7 +623,7 @@ namespace ValheimAdminOverlay
 
             if (!Actions.IsHostOrDedicatedAdmin)
             {
-                GUILayout.Label("Разбивка по владельцам объектов считается только на хосте.", Theme.Hint);
+                GUILayout.Label("Только на хосте", Theme.Hint);
             }
             else
             {
@@ -600,14 +653,19 @@ namespace ValheimAdminOverlay
             {
                 Ui.BeginIndent();
 
-                var scale = Ui.Slider("Масштаб", Config.UiScale, 0.6f, 2.5f, "0.00", "x");
-                var radius = Ui.SliderInt("Скругление", Config.Radius, 0, 16, " px");
+                var scaleIndex = Ui.Segmented("Масштаб",
+                    new[] { "0.8", "1.0", "1.25", "1.5", "2.0" }, ScaleIndex(Config.UiScale));
+                var scale = ScaleSteps[scaleIndex];
 
                 if (!Mathf.Approximately(scale, Config.UiScale))
                 {
                     Config.UiScale = scale;
                     Config.Save();
                 }
+
+                var radiusIndex = Ui.Segmented("Скругление",
+                    new[] { "0", "3", "6", "10", "14" }, RadiusIndex(Config.Radius));
+                var radius = RadiusSteps[radiusIndex];
 
                 if (radius != Config.Radius)
                 {
@@ -617,8 +675,8 @@ namespace ValheimAdminOverlay
                 }
 
                 GUILayout.BeginHorizontal();
-                var animations = Ui.Toggle("Анимации", Config.Animations);
-                var hovers = Ui.Toggle("Ховеры", Config.HoverEffects);
+                var animations = Ui.Checkbox("Анимации", Config.Animations, 140f);
+                var hovers = Ui.Checkbox("Ховеры", Config.HoverEffects, 140f);
                 GUILayout.FlexibleSpace();
                 GUILayout.EndHorizontal();
 
@@ -638,13 +696,12 @@ namespace ValheimAdminOverlay
                 GUILayout.BeginHorizontal();
                 GUILayout.Label($"Окно {Config.Window.width:0}×{Config.Window.height:0}", Theme.RowMuted);
                 GUILayout.FlexibleSpace();
-                if (GUILayout.Button("Сбросить размер", GUILayout.Width(150f)))
+                if (GUILayout.Button("Сбросить размер", GUILayout.Width(170f)))
                 {
                     Config.Window = new Rect(60f, 60f, 620f, 520f);
                     Config.Save();
                 }
                 GUILayout.EndHorizontal();
-                Ui.Hint("Размер меняется перетаскиванием уголка ◢ справа внизу.");
 
                 Ui.EndIndent();
             }
@@ -690,7 +747,6 @@ namespace ValheimAdminOverlay
                 KeyRow("Выгрузить из процесса", "unload", Config.UnloadKey);
 
                 if (_binding != null)
-                    Ui.Hint("Нажмите клавишу. Escape — отмена.");
 
                 Ui.EndIndent();
             }
@@ -699,7 +755,6 @@ namespace ValheimAdminOverlay
             if (_secDev)
             {
                 Ui.BeginIndent();
-                Ui.Hint("Меню живёт отдельной сборкой, хост читает её из памяти — перезагрузка не требует перезапуска игры.");
 
                 GUILayout.BeginHorizontal();
                 if (GUILayout.Button("Перезагрузить меню", Theme.BtnAccent))
@@ -708,8 +763,6 @@ namespace ValheimAdminOverlay
                     Loader.RequestUnload?.Invoke();
                 GUILayout.FlexibleSpace();
                 GUILayout.EndHorizontal();
-
-                Ui.Hint("После выгрузки меню вернёт F6 или панель хоста на F7.");
                 Ui.EndIndent();
             }
         }
