@@ -13,6 +13,9 @@ namespace ValheimAdminOverlay
         internal static GUIStyle Panel, Card, Title, Hint, Body, MutedLabel, SectionLabel;
         internal static GUIStyle Tab, TabActive, Btn, BtnDanger, BtnAccent;
         internal static GUIStyle RowLabel, RowMuted;
+        internal static GUIStyle SectionHeader, SectionHeaderOpen, MasterOn, MasterOff;
+        internal static GUIStyle ListRow, ListRowActive, SliderTrack, SliderThumb;
+        internal static Texture2D Glow, Pixel;
         internal static GUIStyle ToggleOn, ToggleOff, Close, Rule, Grip, Swatch;
 
         private static bool _ready;
@@ -181,6 +184,72 @@ namespace ValheimAdminOverlay
                 margin = new RectOffset(0, 0, gap + 2, gap + 2)
             };
 
+            SectionHeader = new GUIStyle(Btn)
+            {
+                normal = { background = clear, textColor = Text },
+                hover = { background = Config.HoverEffects ? hoverTex : clear, textColor = Text },
+                active = { background = clear, textColor = Accent },
+                alignment = TextAnchor.MiddleLeft,
+                fontStyle = FontStyle.Bold,
+                margin = new RectOffset(0, 0, gap * 2, gap)
+            };
+
+            SectionHeaderOpen = new GUIStyle(SectionHeader)
+            {
+                normal = { background = clear, textColor = Accent },
+                hover = { background = Config.HoverEffects ? hoverTex : clear, textColor = Accent }
+            };
+
+            MasterOff = new GUIStyle(Btn)
+            {
+                normal = { background = surfaceTex, textColor = Muted },
+                hover = { background = hoverTex, textColor = Text },
+                alignment = TextAnchor.MiddleLeft,
+                fixedHeight = rowHeight + 6,
+                fontSize = 13
+            };
+
+            MasterOn = new GUIStyle(MasterOff)
+            {
+                normal = { background = onTex, textColor = On },
+                hover = { background = onTex, textColor = On },
+                fontStyle = FontStyle.Bold
+            };
+
+            ListRow = new GUIStyle(Btn)
+            {
+                normal = { background = surfaceTex, textColor = Muted },
+                hover = { background = hoverTex, textColor = Text },
+                alignment = TextAnchor.MiddleLeft
+            };
+
+            ListRowActive = new GUIStyle(ListRow)
+            {
+                normal = { background = accentTex, textColor = Accent },
+                hover = { background = accentTex, textColor = Accent },
+                fontStyle = FontStyle.Bold
+            };
+
+            SliderTrack = new GUIStyle
+            {
+                normal = { background = Rounded(2, Line) },
+                border = new RectOffset(2, 2, 2, 2),
+                fixedHeight = 4f,
+                margin = new RectOffset(0, gap, rowHeight / 2 - 2, 0)
+            };
+
+            SliderThumb = new GUIStyle
+            {
+                normal = { background = Rounded(6, Accent) },
+                active = { background = Rounded(6, Accent) },
+                border = new RectOffset(6, 6, 6, 6),
+                fixedWidth = 13f,
+                fixedHeight = 13f
+            };
+
+            Pixel = Solid(Color.white);
+            Glow = RadialGlow(48);
+
             Grip = new GUIStyle
             {
                 normal = { background = Rounded(2, Line) },
@@ -269,6 +338,38 @@ namespace ValheimAdminOverlay
             style.border = new RectOffset(3, 3, 3, 3);
             style.fixedWidth = style.fixedWidth > 0f ? 6f : 0f;
             style.fixedHeight = style.fixedHeight > 0f ? 6f : 0f;
+        }
+
+        // Мягкое пятно с затуханием к краям: рисуется под целью и даёт свечение
+        // без шейдеров и без вмешательства в материалы игры.
+        private static Texture2D RadialGlow(int size)
+        {
+            var tex = new Texture2D(size, size, TextureFormat.ARGB32, false)
+            {
+                hideFlags = HideFlags.HideAndDontSave,
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp
+            };
+
+            var pixels = new Color[size * size];
+            var center = (size - 1) * 0.5f;
+
+            for (var y = 0; y < size; y++)
+            {
+                for (var x = 0; x < size; x++)
+                {
+                    var dx = (x - center) / center;
+                    var dy = (y - center) / center;
+                    var distance = Mathf.Sqrt(dx * dx + dy * dy);
+                    var alpha = Mathf.Clamp01(1f - distance);
+                    pixels[y * size + x] = new Color(1f, 1f, 1f, alpha * alpha);
+                }
+            }
+
+            tex.SetPixels(pixels);
+            tex.Apply();
+            Textures.Add(tex);
+            return tex;
         }
 
         private static Texture2D Solid(Color color)

@@ -21,10 +21,22 @@ namespace ValheimAdminOverlay
         internal static string TagText = "<color=#ff4040>[ЧИТЕР]</color>";
         internal static bool DiagnosticsInChat;
 
-        internal static bool EspPlayers;
+        internal static bool EspEnabled;
+        internal static bool EspPlayers = true;
         internal static bool EspMobs;
-        internal static bool EspOres;
+        internal static bool EspOres = true;
+        internal static bool EspContainers;
+        internal static bool EspLoot;
         internal static float EspDistance = 150f;
+        internal static float EspGlowStrength = 0.45f;
+        internal static float EspGlowSize = 0.35f;
+        internal static float EspOutline = 2f;
+
+        internal static Color EspColorPlayers = Hex("6E9BFF");
+        internal static Color EspColorMobs = Hex("FF7A59");
+        internal static Color EspColorOres = Hex("E8C05A");
+        internal static Color EspColorContainers = Hex("9B7BFF");
+        internal static Color EspColorLoot = Hex("3DD68C");
         internal static string EspOreKeywords = "minerock,silvervein,copper,tin,obsidian,meteorite,flametal";
 
         internal static float UiScale = 1f;
@@ -87,10 +99,22 @@ namespace ValheimAdminOverlay
             TagText = Str(v, "tag_text", TagText);
             DiagnosticsInChat = Bool(v, "diagnostics_in_chat", DiagnosticsInChat);
 
+            EspEnabled = Bool(v, "esp_enabled", EspEnabled);
             EspPlayers = Bool(v, "esp_players", EspPlayers);
             EspMobs = Bool(v, "esp_mobs", EspMobs);
             EspOres = Bool(v, "esp_ores", EspOres);
-            EspDistance = Num(v, "esp_distance", EspDistance);
+            EspContainers = Bool(v, "esp_containers", EspContainers);
+            EspLoot = Bool(v, "esp_loot", EspLoot);
+            EspDistance = Mathf.Clamp(Num(v, "esp_distance", EspDistance), 1f, 600f);
+            EspGlowStrength = Mathf.Clamp01(Num(v, "esp_glow_strength", EspGlowStrength));
+            EspGlowSize = Mathf.Clamp(Num(v, "esp_glow_size", EspGlowSize), 0f, 1.5f);
+            EspOutline = Mathf.Clamp(Num(v, "esp_outline", EspOutline), 1f, 6f);
+
+            EspColorPlayers = Col(v, "esp_color_players", EspColorPlayers);
+            EspColorMobs = Col(v, "esp_color_mobs", EspColorMobs);
+            EspColorOres = Col(v, "esp_color_ores", EspColorOres);
+            EspColorContainers = Col(v, "esp_color_containers", EspColorContainers);
+            EspColorLoot = Col(v, "esp_color_loot", EspColorLoot);
             EspOreKeywords = Str(v, "esp_ore_keywords", EspOreKeywords);
 
             UiScale = Mathf.Clamp(Num(v, "ui_scale", UiScale), 0.6f, 2.5f);
@@ -150,10 +174,21 @@ namespace ValheimAdminOverlay
                 .AppendLine($"tag_text = {TagText}")
                 .AppendLine()
                 .AppendLine("# ESP: подсветка сквозь стены, только у вас на экране")
+                .AppendLine($"esp_enabled = {B(EspEnabled)}")
                 .AppendLine($"esp_players = {B(EspPlayers)}")
                 .AppendLine($"esp_mobs = {B(EspMobs)}")
                 .AppendLine($"esp_ores = {B(EspOres)}")
+                .AppendLine($"esp_containers = {B(EspContainers)}")
+                .AppendLine($"esp_loot = {B(EspLoot)}")
                 .AppendLine($"esp_distance = {F(EspDistance)}")
+                .AppendLine($"esp_glow_strength = {F(EspGlowStrength)}")
+                .AppendLine($"esp_glow_size = {F(EspGlowSize)}")
+                .AppendLine($"esp_outline = {F(EspOutline)}")
+                .AppendLine($"esp_color_players = {HexOf(EspColorPlayers)}")
+                .AppendLine($"esp_color_mobs = {HexOf(EspColorMobs)}")
+                .AppendLine($"esp_color_ores = {HexOf(EspColorOres)}")
+                .AppendLine($"esp_color_containers = {HexOf(EspColorContainers)}")
+                .AppendLine($"esp_color_loot = {HexOf(EspColorLoot)}")
                 .AppendLine($"esp_ore_keywords = {EspOreKeywords}")
                 .AppendLine()
                 .AppendLine($"diagnostics_in_chat = {B(DiagnosticsInChat)}")

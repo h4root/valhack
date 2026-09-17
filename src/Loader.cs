@@ -33,6 +33,8 @@ namespace ValheimAdminOverlay
                 Log.Error("конфиг не прочитан, беру значения по умолчанию: " + e);
             }
 
+            Esp.ApplyColorsFromConfig();
+
             try
             {
                 CreateHost();

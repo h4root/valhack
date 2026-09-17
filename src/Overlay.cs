@@ -13,7 +13,7 @@ namespace ValheimAdminOverlay
         private const float MinHeight = 260f;
 
         private static readonly string[] Tabs =
-            { "Игроки", "Персонаж", "ESP", "Мир", "Диагностика", "Настройки" };
+            { "Игроки", "Персонаж", "ESP", "Предметы", "Навыки", "Мир", "Диагностика", "Настройки" };
 
         private static readonly string[] Weathers =
         {
@@ -30,6 +30,12 @@ namespace ValheimAdminOverlay
         private static bool _resizing;
         private static bool _geometryDirty;
         private static string _binding;
+        private static int _espCategory;
+        private static int _skillIndex;
+        private static bool _secAppearance = true;
+        private static bool _secColors;
+        private static bool _secKeys;
+        private static bool _secDev;
 
         internal static bool IsOpen { get; private set; }
 
@@ -205,8 +211,10 @@ namespace ValheimAdminOverlay
                 case 0: DrawPlayers(); break;
                 case 1: DrawSelf(); break;
                 case 2: DrawEsp(); break;
-                case 3: DrawWorld(); break;
-                case 4: DrawDiagnostics(); break;
+                case 3: DrawSpawner(); break;
+                case 4: DrawSkills(); break;
+                case 5: DrawWorld(); break;
+                case 6: DrawDiagnostics(); break;
                 default: DrawSettings(); break;
             }
             GUILayout.EndScrollView();
@@ -362,32 +370,164 @@ namespace ValheimAdminOverlay
 
         private static void DrawEsp()
         {
-            GUILayout.Label("Подсветка сквозь стены. Рисуется только у вас.", Theme.Hint);
-
-            GUILayout.Label("ЦЕЛИ", Theme.SectionLabel);
-            GUILayout.BeginHorizontal();
-            if (ToggleButton("Игроки", Config.EspPlayers)) { Config.EspPlayers = !Config.EspPlayers; Config.Save(); }
-            if (ToggleButton("Мобы", Config.EspMobs)) { Config.EspMobs = !Config.EspMobs; Config.Save(); }
-            if (ToggleButton("Руда", Config.EspOres)) { Config.EspOres = !Config.EspOres; Config.Save(); }
-            GUILayout.EndHorizontal();
-
-            GUILayout.Label("РАДИУС", Theme.SectionLabel);
-            GUILayout.BeginHorizontal();
-            GUILayout.Label($"{Config.EspDistance:0} м", Theme.RowLabel, GUILayout.Width(52f));
-            foreach (var radius in new[] { 50f, 100f, 150f, 300f, 600f })
-                if (GUILayout.Button($"{radius:0}")) { Config.EspDistance = radius; Config.Save(); }
-            GUILayout.EndHorizontal();
-
-            GUILayout.Label("ЧТО СЧИТАТЬ РУДОЙ", Theme.SectionLabel);
-            var keywords = GUILayout.TextField(Config.EspOreKeywords);
-            if (keywords != Config.EspOreKeywords)
+            var enabled = Ui.Master("ESP включён", Config.EspEnabled);
+            if (enabled != Config.EspEnabled)
             {
-                Config.EspOreKeywords = keywords;
+                Config.EspEnabled = enabled;
                 Config.Save();
             }
 
-            GUILayout.Label($"Подсвечено целей: {Esp.Count}", Theme.MutedLabel);
-            GUILayout.Label("Клиент знает только о прогруженных зонах вокруг вас — дальше них ESP ничего не покажет.", Theme.Hint);
+            if (!Config.EspEnabled)
+            {
+                Ui.Hint("Подсветка сквозь стены. Рисуется только у вас на экране.");
+                return;
+            }
+
+            Esp.ApplyColorsFromConfig();
+
+            Ui.Caption("КАТЕГОРИИ");
+            _espCategory = Ui.List(
+                Esp.Categories.Select(c => c.Title).ToArray(),
+                _espCategory,
+                i => Esp.Categories[i].Enabled ? "вкл" : "");
+
+            var category = Esp.Categories[_espCategory];
+
+            Ui.BeginIndent();
+            var on = Ui.Toggle(category.Enabled ? "Показывать" : "Не показывать", category.Enabled);
+            if (on != category.Enabled)
+            {
+                category.Enabled = on;
+                Esp.StoreColorsToConfig();
+                Config.Save();
+            }
+
+            if (category.Enabled)
+            {
+                GUILayout.BeginHorizontal();
+                category.ShowGlow = Ui.Toggle("Свечение", category.ShowGlow);
+                category.ShowBox = Ui.Toggle("Обводка", category.ShowBox);
+                category.ShowLabel = Ui.Toggle("Подпись", category.ShowLabel);
+                GUILayout.EndHorizontal();
+
+                var color = Ui.ColorField("Цвет", category.Color);
+                if (color != category.Color)
+                {
+                    category.Color = color;
+                    Esp.StoreColorsToConfig();
+                    Config.Save();
+                }
+
+                if (_espCategory == (int)EspKind.Ores)
+                {
+                    Ui.Caption("ЧТО СЧИТАТЬ РУДОЙ");
+                    var keywords = GUILayout.TextField(Config.EspOreKeywords);
+                    if (keywords != Config.EspOreKeywords)
+                    {
+                        Config.EspOreKeywords = keywords;
+                        Config.Save();
+                    }
+                    Ui.Hint("Подстроки имён префабов через запятую.");
+                }
+            }
+            Ui.EndIndent();
+
+            Ui.Caption("ОБЩЕЕ");
+            var distance = Ui.Slider("Радиус", Config.EspDistance, 1f, 600f, "0", " м");
+            var glow = Ui.Slider("Сила свечения", Config.EspGlowStrength, 0f, 1f, "0.00");
+            var glowSize = Ui.Slider("Размер свечения", Config.EspGlowSize, 0f, 1.5f, "0.00");
+            var outline = Ui.Slider("Толщина обводки", Config.EspOutline, 1f, 6f, "0", " px");
+
+            if (!Mathf.Approximately(distance, Config.EspDistance) ||
+                !Mathf.Approximately(glow, Config.EspGlowStrength) ||
+                !Mathf.Approximately(glowSize, Config.EspGlowSize) ||
+                !Mathf.Approximately(outline, Config.EspOutline))
+            {
+                Config.EspDistance = distance;
+                Config.EspGlowStrength = glow;
+                Config.EspGlowSize = glowSize;
+                Config.EspOutline = outline;
+                Config.Save();
+            }
+
+            GUILayout.Label($"Подсвечено целей: {Esp.Count}", Theme.RowMuted);
+            Ui.Hint("Клиент знает только о прогруженных зонах вокруг вас — дальше них ESP ничего не покажет.");
+        }
+
+        private static void DrawSpawner()
+        {
+            if (Player.m_localPlayer == null)
+            {
+                Ui.Hint("Персонаж не загружен.");
+                return;
+            }
+
+            Ui.Caption("ПОИСК");
+            var filter = GUILayout.TextField(Spawner.Filter);
+            if (filter != Spawner.Filter) Spawner.Filter = filter;
+
+            Spawner.Amount = Ui.SliderInt("Количество", Spawner.Amount, 1, 100, " шт");
+            Spawner.Quality = Ui.SliderInt("Качество", Spawner.Quality, 1, 4);
+
+            var items = Spawner.Items;
+            Ui.Caption($"ПРЕДМЕТЫ  ({items.Count} из {Spawner.TotalCount})");
+
+            if (items.Count == 0)
+            {
+                Ui.Hint("Ничего не найдено. Очистите поиск или зайдите в мир — база предметов грузится вместе с ним.");
+                return;
+            }
+
+            foreach (var prefab in items)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(Spawner.Clean(prefab.name), Theme.RowLabel);
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button("Создать", Theme.BtnAccent, GUILayout.Width(90f)))
+                    Spawner.Spawn(prefab);
+                GUILayout.EndHorizontal();
+            }
+
+            if (!string.IsNullOrEmpty(Spawner.Status))
+                GUILayout.Label(Spawner.Status, Theme.RowMuted);
+        }
+
+        private static void DrawSkills()
+        {
+            if (Player.m_localPlayer == null)
+            {
+                Ui.Hint("Персонаж не загружен.");
+                return;
+            }
+
+            Ui.Caption("РЕЦЕПТЫ");
+            if (GUILayout.Button("Открыть все рецепты", Theme.BtnAccent))
+                Progression.UnlockRecipes();
+
+            Ui.Caption("НАВЫКИ");
+            Progression.SkillLevel = Ui.SliderInt("Уровень", Progression.SkillLevel, 0, 100);
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Применить ко всем"))
+                Progression.SetAllSkills(Progression.SkillLevel);
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            var names = Progression.SkillNames;
+            _skillIndex = Ui.List(names, _skillIndex);
+
+            Ui.BeginIndent();
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button($"Задать {Progression.SkillLevel}", Theme.BtnAccent, GUILayout.Width(130f)))
+                Progression.SetSkill(names[_skillIndex], Progression.SkillLevel);
+            if (GUILayout.Button("Сбросить", Theme.BtnDanger, GUILayout.Width(110f)))
+                Progression.SetSkill(names[_skillIndex], 0);
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+            Ui.EndIndent();
+
+            if (!string.IsNullOrEmpty(Progression.Status))
+                GUILayout.Label(Progression.Status, Theme.RowMuted);
         }
 
         private static void DrawWorld()
@@ -455,113 +595,130 @@ namespace ValheimAdminOverlay
 
         private static void DrawSettings()
         {
-            GUILayout.Label("МАСШТАБ И ГЕОМЕТРИЯ", Theme.SectionLabel);
-            GUILayout.BeginHorizontal();
-            GUILayout.Label($"Масштаб x{Config.UiScale:0.00}", Theme.RowLabel, GUILayout.Width(110f));
-            foreach (var scale in new[] { 0.8f, 1f, 1.25f, 1.5f, 2f })
-                if (GUILayout.Button($"{scale:0.##}"))
+            _secAppearance = Ui.Section("Внешний вид", _secAppearance);
+            if (_secAppearance)
+            {
+                Ui.BeginIndent();
+
+                var scale = Ui.Slider("Масштаб", Config.UiScale, 0.6f, 2.5f, "0.00", "x");
+                var radius = Ui.SliderInt("Скругление", Config.Radius, 0, 16, " px");
+
+                if (!Mathf.Approximately(scale, Config.UiScale))
                 {
                     Config.UiScale = scale;
                     Config.Save();
                 }
-            GUILayout.EndHorizontal();
 
-            GUILayout.BeginHorizontal();
-            GUILayout.Label($"Размер {Config.Window.width:0}×{Config.Window.height:0}", Theme.RowMuted);
-            GUILayout.FlexibleSpace();
-            if (GUILayout.Button("Сбросить размер"))
-            {
-                Config.Window = new Rect(60f, 60f, 620f, 520f);
-                Config.Save();
-            }
-            GUILayout.EndHorizontal();
-            GUILayout.Label("Тянуть за уголок ◢ справа внизу.", Theme.Hint);
-
-            GUILayout.Label("ЭФФЕКТЫ", Theme.SectionLabel);
-            GUILayout.BeginHorizontal();
-            if (ToggleButton("Анимации", Config.Animations))
-            {
-                Config.Animations = !Config.Animations;
-                Config.Save();
-            }
-            if (ToggleButton("Ховеры", Config.HoverEffects))
-            {
-                Config.HoverEffects = !Config.HoverEffects;
-                Config.Save();
-                Theme.Rebuild();
-            }
-            GUILayout.EndHorizontal();
-
-            GUILayout.BeginHorizontal();
-            GUILayout.Label($"Скругление {Config.Radius}px", Theme.RowLabel, GUILayout.Width(120f));
-            foreach (var radius in new[] { 0, 3, 6, 10, 14 })
-                if (GUILayout.Button(radius.ToString()))
+                if (radius != Config.Radius)
                 {
                     Config.Radius = radius;
                     Config.Save();
                     Theme.Rebuild();
                 }
-            GUILayout.EndHorizontal();
 
-            GUILayout.Label("ЦВЕТА", Theme.SectionLabel);
-            ColorRow("Фон", () => Config.ColorBg, c => Config.ColorBg = c);
-            ColorRow("Поверхность", () => Config.ColorSurface, c => Config.ColorSurface = c);
-            ColorRow("Акцент", () => Config.ColorAccent, c => Config.ColorAccent = c);
-            ColorRow("Текст", () => Config.ColorText, c => Config.ColorText = c);
-            ColorRow("Приглушённый", () => Config.ColorMuted, c => Config.ColorMuted = c);
-            ColorRow("Опасность", () => Config.ColorDanger, c => Config.ColorDanger = c);
-            ColorRow("Включено", () => Config.ColorOn, c => Config.ColorOn = c);
+                GUILayout.BeginHorizontal();
+                var animations = Ui.Toggle("Анимации", Config.Animations);
+                var hovers = Ui.Toggle("Ховеры", Config.HoverEffects);
+                GUILayout.FlexibleSpace();
+                GUILayout.EndHorizontal();
 
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Тёмная")) ApplyPreset("15171CFA", "1C1F27", "6E9BFF", "E7EAF0", "868E9E");
-            if (GUILayout.Button("Тёплая")) ApplyPreset("1A1613FA", "241F1A", "C9A227", "F0E9DE", "9A9086");
-            if (GUILayout.Button("Контраст")) ApplyPreset("000000F2", "141414", "00E0A4", "FFFFFF", "9A9A9A");
-            GUILayout.EndHorizontal();
-
-            GUILayout.Label("ГОРЯЧИЕ КЛАВИШИ", Theme.SectionLabel);
-            KeyRow("Открыть меню", "toggle", Config.ToggleKey);
-            KeyRow("Полёт / noclip", "fly", Config.FlyKey);
-            KeyRow("Бессмертие", "god", Config.GodKey);
-            KeyRow("ESP игроков", "esp", Config.EspKey);
-            KeyRow("Выгрузить из процесса", "unload", Config.UnloadKey);
-            if (_binding != null)
-                GUILayout.Label("Нажмите клавишу. Escape — отмена.", Theme.Hint);
-
-            GUILayout.Label("РАЗРАБОТКА", Theme.SectionLabel);
-            GUILayout.Label("Хост держит меню отдельной сборкой и читает её из памяти, поэтому перезагрузка не требует перезапуска игры.", Theme.Hint);
-            GUILayout.BeginHorizontal();
-            if (GUILayout.Button("Перезагрузить меню", Theme.BtnAccent))
-                Loader.RequestReload?.Invoke();
-            if (GUILayout.Button("Выгрузить меню", Theme.BtnDanger))
-                Loader.RequestUnload?.Invoke();
-            GUILayout.EndHorizontal();
-            GUILayout.Label("После выгрузки меню вернёт F6 или панель хоста на F7.", Theme.Hint);
-        }
-
-        private static void ColorRow(string label, Func<Color> get, Action<Color> set)
-        {
-            GUILayout.BeginHorizontal();
-            GUILayout.Label(label, Theme.RowLabel, GUILayout.Width(120f));
-
-            var previous = GUI.color;
-            GUI.color = get();
-            GUILayout.Box(GUIContent.none, Theme.Swatch, GUILayout.Width(22f), GUILayout.Height(16f));
-            GUI.color = previous;
-
-            var current = Config.HexOf(get());
-            var edited = GUILayout.TextField(current, 8, GUILayout.Width(80f));
-            if (edited != current && edited.Length >= 6)
-            {
-                var parsed = Config.Hex(edited);
-                if (parsed != Color.magenta)
+                if (animations != Config.Animations)
                 {
-                    set(parsed);
+                    Config.Animations = animations;
+                    Config.Save();
+                }
+
+                if (hovers != Config.HoverEffects)
+                {
+                    Config.HoverEffects = hovers;
                     Config.Save();
                     Theme.Rebuild();
                 }
+
+                GUILayout.BeginHorizontal();
+                GUILayout.Label($"Окно {Config.Window.width:0}×{Config.Window.height:0}", Theme.RowMuted);
+                GUILayout.FlexibleSpace();
+                if (GUILayout.Button("Сбросить размер", GUILayout.Width(150f)))
+                {
+                    Config.Window = new Rect(60f, 60f, 620f, 520f);
+                    Config.Save();
+                }
+                GUILayout.EndHorizontal();
+                Ui.Hint("Размер меняется перетаскиванием уголка ◢ справа внизу.");
+
+                Ui.EndIndent();
             }
 
-            GUILayout.EndHorizontal();
+            _secColors = Ui.Section("Цвета темы", _secColors);
+            if (_secColors)
+            {
+                Ui.BeginIndent();
+
+                var changed = false;
+                changed |= Apply(Ui.ColorField("Фон", Config.ColorBg), ref Config.ColorBg);
+                changed |= Apply(Ui.ColorField("Поверхность", Config.ColorSurface), ref Config.ColorSurface);
+                changed |= Apply(Ui.ColorField("Акцент", Config.ColorAccent), ref Config.ColorAccent);
+                changed |= Apply(Ui.ColorField("Текст", Config.ColorText), ref Config.ColorText);
+                changed |= Apply(Ui.ColorField("Приглушённый", Config.ColorMuted), ref Config.ColorMuted);
+                changed |= Apply(Ui.ColorField("Опасность", Config.ColorDanger), ref Config.ColorDanger);
+                changed |= Apply(Ui.ColorField("Включено", Config.ColorOn), ref Config.ColorOn);
+
+                if (changed)
+                {
+                    Config.Save();
+                    Theme.Rebuild();
+                }
+
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Тёмная")) ApplyPreset("15171CFA", "1C1F27", "6E9BFF", "E7EAF0", "868E9E");
+                if (GUILayout.Button("Тёплая")) ApplyPreset("1A1613FA", "241F1A", "C9A227", "F0E9DE", "9A9086");
+                if (GUILayout.Button("Контраст")) ApplyPreset("000000F2", "141414", "00E0A4", "FFFFFF", "9A9A9A");
+                GUILayout.FlexibleSpace();
+                GUILayout.EndHorizontal();
+
+                Ui.EndIndent();
+            }
+
+            _secKeys = Ui.Section("Горячие клавиши", _secKeys);
+            if (_secKeys)
+            {
+                Ui.BeginIndent();
+                KeyRow("Открыть меню", "toggle", Config.ToggleKey);
+                KeyRow("Полёт / noclip", "fly", Config.FlyKey);
+                KeyRow("Бессмертие", "god", Config.GodKey);
+                KeyRow("ESP", "esp", Config.EspKey);
+                KeyRow("Выгрузить из процесса", "unload", Config.UnloadKey);
+
+                if (_binding != null)
+                    Ui.Hint("Нажмите клавишу. Escape — отмена.");
+
+                Ui.EndIndent();
+            }
+
+            _secDev = Ui.Section("Разработка", _secDev);
+            if (_secDev)
+            {
+                Ui.BeginIndent();
+                Ui.Hint("Меню живёт отдельной сборкой, хост читает её из памяти — перезагрузка не требует перезапуска игры.");
+
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("Перезагрузить меню", Theme.BtnAccent))
+                    Loader.RequestReload?.Invoke();
+                if (GUILayout.Button("Выгрузить меню", Theme.BtnDanger))
+                    Loader.RequestUnload?.Invoke();
+                GUILayout.FlexibleSpace();
+                GUILayout.EndHorizontal();
+
+                Ui.Hint("После выгрузки меню вернёт F6 или панель хоста на F7.");
+                Ui.EndIndent();
+            }
+        }
+
+        private static bool Apply(Color edited, ref Color target)
+        {
+            if (edited == target) return false;
+            target = edited;
+            return true;
         }
 
         private static void ApplyPreset(string bg, string surface, string accent, string text, string muted)
