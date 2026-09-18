@@ -110,11 +110,28 @@ namespace ValheimAdminOverlay
             Log.Info("выгружен");
         }
 
+        private const string HostName = "AdminOverlayPayload";
+
         private static void CreateHost()
         {
             if (_host != null) return;
 
-            _host = new GameObject("AdminOverlayPayload");
+            // Выгрузить саму сборку Mono не может, поэтому объект прошлой версии
+            // обязан исчезнуть здесь. Если он выживет, его OnGUI продолжит рисовать
+            // старое окно поверх нового — с тем же идентификатором окна.
+            var stale = 0;
+            foreach (var existing in UnityEngine.Object.FindObjectsOfType<GameObject>())
+            {
+                if (existing == null || existing.name != HostName) continue;
+
+                UnityEngine.Object.DestroyImmediate(existing);
+                stale++;
+            }
+
+            if (stale > 0)
+                Log.Warn($"убрано зависших окон от прошлых версий: {stale}");
+
+            _host = new GameObject(HostName);
             _host.AddComponent<OverlayBehaviour>();
             UnityEngine.Object.DontDestroyOnLoad(_host);
 

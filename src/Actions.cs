@@ -152,7 +152,7 @@ namespace ValheimAdminOverlay
 
                     character.TeleportTo(target, rotation, true);
                     LastTeleportError = null;
-                    Log.Info($"телепорт к себе: {info.m_name}");
+                    Log.Info($"телепорт напрямую: {info.m_name}, владею={character.IsOwner()}");
                     return;
                 }
             }
@@ -171,6 +171,9 @@ namespace ValheimAdminOverlay
                 LastTeleportError = info.m_name + ": персонаж не определён";
                 return;
             }
+
+            Log.Info($"телепорт: {info.m_name} рядом не найден, иду через сеть; " +
+                     $"characterID={info.m_characterID}, публичная позиция={info.m_publicPosition}");
 
             var method = Rpc.TeleportMethod;
             var owner = ZRoutedRpc.Everybody;

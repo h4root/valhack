@@ -18,7 +18,7 @@ namespace ValheimAdminOverlay
             try
             {
                 _file = Path.Combine(directory, "adminoverlay.log");
-                File.WriteAllText(_file, $"=== {DateTime.Now:yyyy-MM-dd HH:mm:ss} ==={Environment.NewLine}", Encoding.UTF8);
+                File.AppendAllText(_file, $"=== {DateTime.Now:yyyy-MM-dd HH:mm:ss} ==={Environment.NewLine}", Encoding.UTF8);
             }
             catch (Exception)
             {
