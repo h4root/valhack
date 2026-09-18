@@ -59,7 +59,13 @@ namespace ValheimAdminOverlay
             IsOpen = false;
             _binding = null;
             _resizing = false;
-            SetMouseCapture(_cursorWasLocked);
+
+            // Поле ввода удерживает фокус IMGUI и после закрытия окна: без сброса
+            // курсор так и остаётся разблокированным, а клавиши уходят в никуда.
+            GUIUtility.keyboardControl = 0;
+            GUIUtility.hotControl = 0;
+
+            ReleaseMouse();
             SaveGeometryIfDirty();
         }
 
@@ -78,6 +84,22 @@ namespace ValheimAdminOverlay
             _anim = Mathf.MoveTowards(_anim, target, Time.unscaledDeltaTime * 7f);
         }
 
+        // Камера возвращает захват мыши каждый кадр, поэтому пока окно открыто
+        // курсор приходится освобождать постоянно, а не один раз при открытии.
+        internal static void KeepCursorFree()
+        {
+            if (!IsOpen) return;
+
+            if (Cursor.lockState != CursorLockMode.None) Cursor.lockState = CursorLockMode.None;
+            if (!Cursor.visible) Cursor.visible = true;
+
+            var camera = GameCamera.instance;
+            if (camera == null) return;
+
+            var field = AccessTools.Field(typeof(GameCamera), "m_mouseCapture");
+            if ((bool)field.GetValue(camera)) field.SetValue(camera, false);
+        }
+
         private static void SetMouseCapture(bool capture)
         {
             Cursor.lockState = capture ? CursorLockMode.Locked : CursorLockMode.None;
@@ -86,6 +108,21 @@ namespace ValheimAdminOverlay
             var camera = GameCamera.instance;
             if (camera != null)
                 AccessTools.Field(typeof(GameCamera), "m_mouseCapture").SetValue(camera, capture);
+        }
+
+        // Возврат управления игре. Записать m_mouseCapture = true мало: камера
+        // считает, что уже захватила мышь, и заново не блокирует курсор. Поэтому
+        // флаг сбрасывается в false — тогда UpdateMouseCapture сделает захват сам.
+        private static void ReleaseMouse()
+        {
+            var camera = GameCamera.instance;
+            if (camera != null)
+                AccessTools.Field(typeof(GameCamera), "m_mouseCapture").SetValue(camera, false);
+
+            if (!_cursorWasLocked) return;
+
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
         }
 
         internal static void Draw()
@@ -184,7 +221,7 @@ namespace ValheimAdminOverlay
         {
             if (!_geometryDirty) return;
             _geometryDirty = false;
-            Config.Save();
+            Config.MarkDirty();
         }
 
         private static void DrawWindow(int id)
@@ -494,7 +531,7 @@ namespace ValheimAdminOverlay
             if (dirty)
             {
                 Esp.StoreColorsToConfig();
-                Config.Save();
+                Config.MarkDirty();
             }
         }
 
@@ -593,6 +630,16 @@ namespace ValheimAdminOverlay
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
 
+            Ui.Caption("ДОСТИЖЕНИЯ");
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Вернуть достижения", Theme.BtnAccent, GUILayout.Width(210f)))
+                AchievementFix.Restore();
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+            GUILayout.Label(AchievementFix.DescribeCached(), Theme.RowMuted);
+            if (!string.IsNullOrEmpty(AchievementFix.Status))
+                GUILayout.Label(AchievementFix.Status, Theme.RowMuted);
+
             Ui.Caption("НАВЫКИ");
             Progression.SkillLevel = Ui.SliderInt("Уровень", Progression.SkillLevel, 0, 100);
 
@@ -658,7 +705,7 @@ namespace ValheimAdminOverlay
 
             Ships.Radius = Ui.Slider("Радиус поиска", Ships.Radius, 5f, 100f, "0", " м");
 
-            var shipHealth = Ships.NearestHealth();
+            var shipHealth = Ships.NearestHealthCached();
             GUILayout.Label(
                 shipHealth < 0f ? "кораблей рядом нет" : $"худшая часть рядом: {shipHealth * 100f:0}%",
                 Theme.RowMuted);

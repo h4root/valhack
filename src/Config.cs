@@ -75,6 +75,24 @@ namespace ValheimAdminOverlay
         }
 
         private static string _path;
+        private static bool _dirty;
+        private static float _flushAt;
+
+        // Слайдер меняет значение каждый кадр, и прямой Save() писал бы файл
+        // десятки раз в секунду. Копим изменения и пишем один раз, когда утихло.
+        internal static void MarkDirty()
+        {
+            _dirty = true;
+            _flushAt = Time.unscaledTime + 0.75f;
+        }
+
+        internal static void FlushIfDue()
+        {
+            if (!_dirty || Time.unscaledTime < _flushAt) return;
+
+            _dirty = false;
+            Save();
+        }
 
         internal static void Load(string path)
         {

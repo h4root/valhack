@@ -33,7 +33,9 @@ namespace ValheimAdminOverlay
                     }
                 }
 
+                Config.FlushIfDue();
                 Overlay.Tick();
+                Overlay.KeepCursorFree();
                 Cheats.Tick();
                 Ships.Tick();
                 Esp.Tick();

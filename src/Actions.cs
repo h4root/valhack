@@ -139,22 +139,13 @@ namespace ValheimAdminOverlay
 
             // Если персонаж прогружен рядом — зовём штатный метод, он сам
             // перенаправит вызов владельцу.
-            var characters = Character.GetAllCharacters();
-            if (characters != null)
+            var nearby = FindLoadedCharacter(info);
+            if (nearby != null)
             {
-                foreach (var character in characters)
-                {
-                    if (character == null || !character.IsPlayer()) continue;
-
-                    var sameId = character.GetZDOID() == info.m_characterID;
-                    var sameName = character is Player other && other.GetPlayerName() == info.m_name;
-                    if (!sameId && !sameName) continue;
-
-                    character.TeleportTo(target, rotation, true);
-                    LastTeleportError = null;
-                    Log.Info($"телепорт напрямую: {info.m_name}, владею={character.IsOwner()}");
-                    return;
-                }
+                nearby.TeleportTo(target, rotation, true);
+                LastTeleportError = null;
+                Log.Info($"телепорт напрямую: {info.m_name}, владею={nearby.IsOwner()}");
+                return;
             }
 
             // Иначе шлём маршрутизируемый RPC прямо на ZDO персонажа: работает
@@ -193,13 +184,40 @@ namespace ValheimAdminOverlay
 
         internal static void TeleportToPlayer(ZNet.PlayerInfo info)
         {
+            // Позиция из списка игроков приходит, только если человек делится ею
+            // на карте. Но если персонаж прогружен рядом, его настоящие координаты
+            // можно взять прямо со сцены — это надёжнее и не зависит от настройки.
+            var live = FindLoadedCharacter(info);
+            if (live != null)
+            {
+                TeleportTo(live.transform.position + Vector3.up * 2f);
+                return;
+            }
+
             if (!info.m_publicPosition)
             {
-                LastTeleportError = info.m_name + " не делится позицией";
+                LastTeleportError = info.m_name + ": позиция скрыта и он далеко";
                 return;
             }
 
             TeleportTo(info.m_position + Vector3.up * 2f);
+        }
+
+        internal static Character FindLoadedCharacter(ZNet.PlayerInfo info)
+        {
+            var characters = Character.GetAllCharacters();
+            if (characters == null) return null;
+
+            foreach (var character in characters)
+            {
+                if (character == null || !character.IsPlayer()) continue;
+                if (character == Player.m_localPlayer) continue;
+
+                if (character.GetZDOID() == info.m_characterID) return character;
+                if (character is Player other && other.GetPlayerName() == info.m_name) return character;
+            }
+
+            return null;
         }
 
         internal static void ExploreMap()

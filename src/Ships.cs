@@ -109,6 +109,20 @@ namespace ValheimAdminOverlay
             return touched;
         }
 
+        private static float _healthCache = -1f;
+        private static float _healthAt;
+
+        // FindObjectsOfType сканирует всю сцену, поэтому в OnGUI его звать
+        // каждый кадр нельзя: держим значение секунду.
+        internal static float NearestHealthCached()
+        {
+            if (Time.unscaledTime < _healthAt) return _healthCache;
+
+            _healthAt = Time.unscaledTime + 1f;
+            _healthCache = NearestHealth();
+            return _healthCache;
+        }
+
         internal static float NearestHealth()
         {
             var player = Player.m_localPlayer;
