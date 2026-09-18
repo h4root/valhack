@@ -129,10 +129,19 @@ namespace ValheimAdminOverlay
                 fontSize = 12
             };
 
+            // Заливка сплошным акцентом, а не полупрозрачной подложкой: раньше
+            // BtnAccent брал ту же текстуру, что и состояние "нажато" у обычной
+            // кнопки, поэтому выглядел постоянно вдавленным.
+            var accentFill = Rounded(radius, Accent);
+            var accentPressed = Rounded(radius, Darken(Accent, 0.18f));
+            var onAccent = new Color(Bg.r, Bg.g, Bg.b, 1f);
+
             BtnAccent = new GUIStyle(Btn)
             {
-                normal = { background = accentTex, textColor = Accent },
-                hover = { background = accentTex, textColor = Accent }
+                normal = { background = accentFill, textColor = onAccent },
+                hover = { background = Config.HoverEffects ? Rounded(radius, Lighten(Accent, 0.06f)) : accentFill, textColor = onAccent },
+                active = { background = accentPressed, textColor = onAccent },
+                fontStyle = FontStyle.Bold
             };
 
             BtnDanger = new GUIStyle(Btn)
@@ -344,6 +353,9 @@ namespace ValheimAdminOverlay
             Skin = null;
             _ready = false;
         }
+
+        private static Color Darken(Color c, float amount)
+            => new Color(Mathf.Max(0f, c.r - amount), Mathf.Max(0f, c.g - amount), Mathf.Max(0f, c.b - amount), c.a);
 
         private static Color Lighten(Color c, float amount)
             => new Color(c.r + amount, c.g + amount, c.b + amount, c.a);

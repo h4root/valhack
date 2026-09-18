@@ -50,7 +50,7 @@ namespace ValheimAdminOverlay
             {
                 _harmony = new Harmony(HarmonyId);
                 _harmony.PatchAll(Assembly.GetExecutingAssembly());
-                Log.Info("патчи установлены");
+                Log.Info("патчи установлены, сборка " + Rpc.BuildStamp);
             }
             catch (Exception e)
             {

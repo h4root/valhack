@@ -191,6 +191,8 @@ namespace ValheimAdminOverlay
         {
             GUILayout.BeginHorizontal();
             GUILayout.Label("Админ-оверлей", Theme.Title);
+            GUILayout.Space(8f);
+            GUILayout.Label("сборка " + Rpc.BuildStamp, Theme.RowMuted);
             GUILayout.FlexibleSpace();
             var closeClicked = GUILayout.Button("✕", Theme.Close, GUILayout.Width(24f));
             GUILayout.EndHorizontal();
@@ -302,6 +304,15 @@ namespace ValheimAdminOverlay
 
             if (!string.IsNullOrEmpty(Actions.LastTeleportError))
                 GUILayout.Label(Actions.LastTeleportError, Theme.RowMuted);
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Проверить RPC телепорта", GUILayout.Width(230f)))
+                Rpc.Probe();
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            if (!string.IsNullOrEmpty(Rpc.ProbeResult))
+                GUILayout.Label(Rpc.ProbeResult, Theme.RowMuted);
         }
 
         private static void DrawSelf()
