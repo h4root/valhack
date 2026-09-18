@@ -644,6 +644,28 @@ namespace ValheimAdminOverlay
                 GUILayout.EndHorizontal();
             }
 
+            GUILayout.Label("КОРАБЛЬ", Theme.SectionLabel);
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("Починить рядом", Theme.BtnAccent, GUILayout.Width(170f)))
+                Ships.RepairNearby();
+
+            var auto = Ui.Checkbox("Авто-починка", Ships.AutoRepair, 160f);
+            if (auto != Ships.AutoRepair) Ships.AutoRepair = auto;
+
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+
+            Ships.Radius = Ui.Slider("Радиус поиска", Ships.Radius, 5f, 100f, "0", " м");
+
+            var shipHealth = Ships.NearestHealth();
+            GUILayout.Label(
+                shipHealth < 0f ? "кораблей рядом нет" : $"худшая часть рядом: {shipHealth * 100f:0}%",
+                Theme.RowMuted);
+
+            if (!string.IsNullOrEmpty(Ships.Status))
+                GUILayout.Label(Ships.Status, Theme.RowMuted);
+
             GUILayout.Label("СЕРВЕР", Theme.SectionLabel);
             GUI.enabled = Actions.IsHostOrDedicatedAdmin;
             if (GUILayout.Button("Сохранить мир")) Actions.SaveWorld();

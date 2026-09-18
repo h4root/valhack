@@ -35,6 +35,7 @@ namespace ValheimAdminOverlay
 
                 Overlay.Tick();
                 Cheats.Tick();
+                Ships.Tick();
                 Esp.Tick();
                 Diagnostics.Tick();
             }
