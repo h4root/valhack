@@ -12,6 +12,44 @@ namespace ValheimAdminOverlay
     internal static class Rpc
     {
         private static string _probe;
+        private static string _teleportMethod;
+
+        // Имя определяется по реестру обработчиков, а не зашивается: игра
+        // регистрирует метод под его буквальным именем (с префиксом RPC_),
+        // и при обновлении оно может измениться.
+        internal static string TeleportMethod
+        {
+            get
+            {
+                if (_teleportMethod != null) return _teleportMethod;
+
+                var player = Player.m_localPlayer;
+                if (player == null) return "RPC_TeleportTo";
+
+                try
+                {
+                    var view = player.GetComponent<ZNetView>();
+                    if (view != null &&
+                        AccessTools.Field(typeof(ZNetView), "m_functions").GetValue(view) is IDictionary functions)
+                    {
+                        foreach (var name in new[] { "RPC_TeleportTo", "TeleportTo", "Teleport" })
+                        {
+                            if (!functions.Contains(StableHash(name))) continue;
+
+                            _teleportMethod = name;
+                            Log.Info("обработчик телепорта: " + name);
+                            return _teleportMethod;
+                        }
+                    }
+                }
+                catch (Exception e)
+                {
+                    Log.Error("поиск обработчика телепорта: " + e.Message);
+                }
+
+                return "RPC_TeleportTo";
+            }
+        }
 
         internal static string ProbeResult => _probe;
 

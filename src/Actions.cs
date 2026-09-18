@@ -145,7 +145,10 @@ namespace ValheimAdminOverlay
                 foreach (var character in characters)
                 {
                     if (character == null || !character.IsPlayer()) continue;
-                    if (character.GetZDOID() != info.m_characterID) continue;
+
+                    var sameId = character.GetZDOID() == info.m_characterID;
+                    var sameName = character is Player other && other.GetPlayerName() == info.m_name;
+                    if (!sameId && !sameName) continue;
 
                     character.TeleportTo(target, rotation, true);
                     LastTeleportError = null;
@@ -169,11 +172,20 @@ namespace ValheimAdminOverlay
                 return;
             }
 
-            rpc.InvokeRoutedRPC(ZRoutedRpc.Everybody, info.m_characterID, "TeleportTo",
-                target, rotation, true);
+            var method = Rpc.TeleportMethod;
+            var owner = ZRoutedRpc.Everybody;
+
+            var zdoMan = ZDOMan.instance;
+            if (zdoMan != null)
+            {
+                var zdo = zdoMan.GetZDO(info.m_characterID);
+                if (zdo != null && zdo.GetOwner() != 0L) owner = zdo.GetOwner();
+            }
+
+            rpc.InvokeRoutedRPC(owner, info.m_characterID, method, target, rotation, true);
 
             LastTeleportError = null;
-            Log.Info($"телепорт к себе по RPC: {info.m_name}");
+            Log.Info($"телепорт по RPC: {info.m_name}, метод {method}, адресат {owner}");
         }
 
         internal static void TeleportToPlayer(ZNet.PlayerInfo info)
