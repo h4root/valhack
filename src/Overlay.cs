@@ -283,6 +283,9 @@ namespace ValheimAdminOverlay
                     Actions.TeleportToPlayer(info);
                 GUI.enabled = true;
 
+                if (GUILayout.Button("Ко мне", Theme.BtnAccent, GUILayout.Width(110f)))
+                    Actions.TeleportPlayerToMe(info);
+
                 if (GUILayout.Button(tagged ? "Снять метку" : "Пометить", GUILayout.Width(130f)))
                     CheaterTag.Toggle(name);
 

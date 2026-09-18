@@ -114,6 +114,68 @@ namespace ValheimAdminOverlay
             p.TeleportTo(target, p.transform.rotation, true);
         }
 
+        // Телепорт чужого персонажа. В Valheim есть штатный сетевой обработчик
+        // Character.RPC_TeleportTo, поэтому телепорт выполняет клиент-владелец
+        // сам — ставить ему ничего не нужно. Позицию чужого персонажа менять
+        // напрямую бессмысленно: владелец перезапишет её в следующем же кадре.
+        internal static void TeleportPlayerToMe(ZNet.PlayerInfo info)
+        {
+            var me = Player.m_localPlayer;
+            if (me == null) return;
+
+            var target = me.transform.position - me.transform.forward * 2f;
+
+            var zones = ZoneSystem.instance;
+            if (zones != null && zones.GetSolidHeight(new Vector3(target.x, 0f, target.z), out var solid))
+                target.y = solid + 1f;
+
+            if (!IsSaneTarget(target))
+            {
+                LastTeleportError = "моя позиция негодна для телепорта";
+                return;
+            }
+
+            var rotation = me.transform.rotation;
+
+            // Если персонаж прогружен рядом — зовём штатный метод, он сам
+            // перенаправит вызов владельцу.
+            var characters = Character.GetAllCharacters();
+            if (characters != null)
+            {
+                foreach (var character in characters)
+                {
+                    if (character == null || !character.IsPlayer()) continue;
+                    if (character.GetZDOID() != info.m_characterID) continue;
+
+                    character.TeleportTo(target, rotation, true);
+                    LastTeleportError = null;
+                    Log.Info($"телепорт к себе: {info.m_name}");
+                    return;
+                }
+            }
+
+            // Иначе шлём маршрутизируемый RPC прямо на ZDO персонажа: работает
+            // на любом расстоянии, даже если он вне наших прогруженных зон.
+            var rpc = ZRoutedRpc.instance;
+            if (rpc == null)
+            {
+                LastTeleportError = "сеть недоступна";
+                return;
+            }
+
+            if (info.m_characterID == ZDOID.None)
+            {
+                LastTeleportError = info.m_name + ": персонаж не определён";
+                return;
+            }
+
+            rpc.InvokeRoutedRPC(ZRoutedRpc.Everybody, info.m_characterID, "TeleportTo",
+                target, rotation, true);
+
+            LastTeleportError = null;
+            Log.Info($"телепорт к себе по RPC: {info.m_name}");
+        }
+
         internal static void TeleportToPlayer(ZNet.PlayerInfo info)
         {
             if (!info.m_publicPosition)
