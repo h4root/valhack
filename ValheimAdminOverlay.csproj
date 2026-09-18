@@ -5,6 +5,13 @@
     <AssemblyName>ValheimAdminOverlay</AssemblyName>
     <LangVersion>latest</LangVersion>
     <Version>1.0.0</Version>
+
+    <!-- Уникальная версия на каждую сборку. Иначе Mono считает идентичность
+         (имя+версия) прежней и на повторный Assembly.Load отдаёт уже
+         загруженную сборку — горячая перезагрузка становится пустышкой. -->
+    <_RevSeconds>$([System.Convert]::ToInt32($([System.DateTime]::UtcNow.TimeOfDay.TotalSeconds)))</_RevSeconds>
+    <AssemblyVersion>1.0.$([System.DateTime]::UtcNow.ToString("MMdd")).$([MSBuild]::Divide($(_RevSeconds), 2).ToString("F0"))</AssemblyVersion>
+    <FileVersion>$(AssemblyVersion)</FileVersion>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <AssemblySearchPaths>$(AssemblySearchPaths);{HintPathFromItem}</AssemblySearchPaths>
